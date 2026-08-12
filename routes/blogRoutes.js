@@ -10,6 +10,7 @@ route.get('/', blogControllers.getAllBlogs);
 route.get('/:id', blogControllers.getBlogById);
 route.get('/author/:author', blogControllers.getBlogsByUser);
 route.put('/:id', blogControllers.updateBlog);
+route.patch('/:id', blogControllers.patchBlog);
 route.delete('/:id', blogControllers.deleteBlog);
 
 export default route;

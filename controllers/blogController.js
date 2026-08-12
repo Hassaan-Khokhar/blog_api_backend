@@ -44,6 +44,31 @@ const updateBlog = asyncHandler(async (req, res) => {
   });
 });
 
+const patchBlog = asyncHandler(async (req, res) => {
+  const id = req.params.id;
+  const userId = req.userId;
+  const updates = req.body;
+
+  delete updates.userId;
+  delete updates._id;
+
+  const patchedBlog = await Blog.findOneAndUpdate(
+    {_id: id, userId: securedUserId},
+    {$set: updates},
+    {new: true, runValidators: true}
+  );
+
+  if(!patchedBlog){
+    return res.status(404).json({error: "ID not found or Unauthorized!"});
+  }
+
+  return res.status(200).json({
+    message: "Blog Patched Successfully!",
+    Blog: patchedBlog
+  });
+  
+});
+
 const getAllBlogs = asyncHandler(async (req, res) => {
   const allBlogs = await Blog.find({}).sort({ createdAt: -1 });
 
@@ -100,6 +125,7 @@ const deleteBlog = asyncHandler(async (req, res) => {
 export {
   createBlog,
   updateBlog,
+  patchBlog,
   getAllBlogs,
   getBlogById,
   getBlogsByUser,
