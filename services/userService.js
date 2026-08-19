@@ -112,17 +112,17 @@ const rechargeWalletService = async (userId, amount) => {
 
 
 
-const getTransactionHistoryService = async(userId, page =1, limit = 10)=>{
+const getTransactionHistoryService = async (userId, page = 1, limit = 10) => {
     const skip = (page - 1) * limit;
-    const query = {userId: userId};
+    const query = { userId: userId };
 
 
-    const transactions = await Transaction.find(query).sort({createdAt: -1}).skip(skip).limit(limit);
+    const transactions = await Transaction.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
     const totalTransactions = await Transaction.countDocuments(query);
 
     return {
         transactions: transactions,
-        totalPages: Math.ceil(totalTransactions/limit),
+        totalPages: Math.ceil(totalTransactions / limit),
         currentPage: page
     };
 };

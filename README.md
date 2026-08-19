@@ -1,150 +1,93 @@
-# ✍️ Express.js Blog API
+# 🚀 Enterprise Blog API (with Digital Economy)
 
-A robust and secure RESTful API for a blogging platform built with **Node.js**, **Express**, and **MongoDB**. 
+A production-ready, highly secure RESTful API built with **Node.js, Express, and MongoDB**. 
 
-This project demonstrates modern backend development practices, including secure user authentication using JSON Web Tokens (Access & Refresh Tokens), route protection, device management, and comprehensive CRUD operations for blog posts.
+This is not a standard CRUD application. This API features a **fully functional digital economy**, allowing users to create digital wallets, recharge funds, and purchase premium content from other authors using a double-entry accounting system secured by **ACID Database Transactions**.
 
 ---
 
-## 🚀 Features
+## 🌟 Key Enterprise Features
 
-*   **User Authentication:** Secure signup and login functionality utilizing `bcrypt` for password hashing.
-*   **JWT Authorization:** Implementation of JSON Web Tokens for secure route access and API protection.
-*   **Advanced Token Rotation:** Uses short-lived Access Tokens (15 min) and long-lived Refresh Tokens (30 days) stored securely in HTTP-only cookies.
-*   **Device Management:** 
-    *   Ability for users to log out of a single device.
-    *   Securely log out of all devices at once by revoking all active refresh tokens.
-*   **Blog Management:** Complete CRUD (Create, Read, Update, Delete) functionality for blog posts.
-*   **Author Association:** Blogs are tied to their creators via database references, preventing unauthorized edits or deletions.
-*   **Global Error Handling:** Clean and consistent error responses using custom async handlers.
+- **Decoupled Architecture:** Strict separation of concerns using the Controller-Service-Model pattern.
+- **ACID Financial Transactions:** Uses Mongoose Sessions (`startTransaction`, `commitTransaction`, `abortTransaction`) to guarantee that funds are never lost during server crashes.
+- **Bulletproof Error Handling:** A centralized, global error-handling middleware that intercepts and formats native Mongoose errors (`CastError`, `ValidationError`, `11000 Duplicate Key`) and `JsonWebToken` errors into clean API responses.
+- **Data Validation Pipeline:** All incoming requests are sanitized and validated using **Joi** schemas before reaching the controllers.
+- **Advanced Querying:** Supports paginated results and regex-based case-insensitive searching to handle massive datasets without consuming server memory.
+- **Robust Security:** Implements `helmet` for HTTP header security and `express-rate-limit` to block brute-force bot attacks.
+- **JWT Authentication:** Secure user sessions using short-lived Access Tokens and long-lived Refresh Tokens.
 
 ---
 
 ## 🛠️ Tech Stack
 
-*   **Runtime:** Node.js
-*   **Framework:** Express.js
-*   **Database:** MongoDB (Object modeling via Mongoose)
-*   **Authentication:** JSON Web Tokens (JWT) & Cookie Parser
-*   **Security:** Bcrypt (Password Hashing)
-*   **Development:** Nodemon
+- **Runtime:** Node.js
+- **Framework:** Express.js
+- **Database:** MongoDB & Mongoose
+- **Validation:** Joi
+- **Security:** Helmet, express-rate-limit, bcrypt, jsonwebtoken
 
 ---
 
-## ⚙️ Installation & Setup
+## 📖 API Endpoints
 
-### Prerequisites
-Make sure you have the following installed on your local machine:
-*   [Node.js](https://nodejs.org/en/) (v14 or higher)
-*   [MongoDB](https://www.mongodb.com/) (Local installation or MongoDB Atlas URI)
+### 🔐 Authentication (`/api/users`)
+- `POST /signup` - Register a new user (Validates email & password strength)
+- `POST /login` - Authenticate and receive Access & Refresh tokens
+- `GET /refresh` - Generate a new Access Token using a valid Refresh Token
+- `POST /logout` - Invalidate the current session
+- `POST /logoutAll` - Revoke all active sessions across all devices
+
+### 💰 Digital Economy (`/api/users`)
+- `POST /recharge` - Add funds to the authenticated user's wallet
+- `GET /transactions` - Fetch a paginated ledger of all financial receipts (Earnings & Purchases)
+
+### ✍️ Blogs (`/api/blogs`)
+- `GET /` - Fetch all blogs (Supports `?page`, `?limit`, and `?search` queries)
+- `GET /:id` - Read a specific blog. **Note:** If the blog is `isPaid: true`, the body is hidden unless the viewer is the author or has purchased it.
+- `GET /author/:author` - Fetch all blogs by a specific user
+- `POST /` - Create a new free or premium blog
+- `POST /:id/purchase` - Purchase a premium blog. Automatically deducts funds from the buyer, credits the author, and generates immutable `Transaction` receipts.
+- `PUT /:id` / `PATCH /:id` - Update an existing blog
+- `DELETE /:id` - Delete a blog
+
+---
+
+## 🚀 Getting Started
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/express-blog-api.git
-cd express-blog-api
+git clone <your-repo-url>
+cd blog-api-project
 ```
 
-### 2. Install dependencies
+### 2. Install Dependencies
 ```bash
 npm install
 ```
 
-### 3. Configure Environment Variables
-Create a `.env` file in the root directory of the project and add the following variables. **Never commit your `.env` file to version control.**
-
+### 3. Environment Variables
+Create a `.env` file in the root directory and configure your secrets:
 ```env
 PORT=5000
-MONGO_URI=your_mongodb_connection_string
-JWT_SECRET=your_super_secret_jwt_key
+MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/<dbname>
+JWT_SECRET=your_super_secret_access_key
 REFRESH_TOKEN_SECRET=your_super_secret_refresh_key
 NODE_ENV=development
 ```
 
-### 4. Start the development server
+### 4. Start the Server
 ```bash
+# Development Mode (Nodemon)
 npm run dev
-```
-The server will start running on `http://localhost:5000`.
 
----
-
-## 📁 Project Structure
-
-```text
-├── controllers/
-│   ├── blogController.js    # Logic for blog routes
-│   └── userController.js    # Logic for authentication routes
-├── middlewares/
-│   └── requireAuth.js       # Middleware to verify JWT and protect routes
-├── models/
-│   ├── blogModel.js         # Mongoose schema for Blogs
-│   └── userModel.js         # Mongoose schema for Users
-├── routes/
-│   ├── authRoutes.js        # Express routes for authentication
-│   └── blogRoutes.js        # Express routes for blogs
-├── utils/
-│   └── asyncHandler.js      # Wrapper to handle async/await try-catch blocks
-├── .env                     # Environment variables (ignored in git)
-├── db.js                    # MongoDB connection setup
-├── index.js                 # Entry point of the application
-└── package.json             # Project dependencies and scripts
+# Production Mode
+npm start
 ```
 
 ---
 
-## 📡 API Endpoints
+## 🛡️ Architecture & Design Decisions
 
-### 🔐 Authentication (`/api/users`)
-
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/signup` | Register a new user account. | No |
-| `POST` | `/login` | Authenticate user and set HTTP-only cookies. | No |
-| `GET` | `/refresh` | Generate a new access token using a valid refresh token. | No |
-| `POST` | `/logout` | Log out of the current device (clears cookies). | No |
-| `POST` | `/logoutAll` | Revoke all refresh tokens and log out of all devices. | **Yes** |
-
-#### Example: Login Request
-```json
-// POST /api/users/login
-{
-  "email": "user@example.com",
-  "password": "mySecurePassword123"
-}
-```
-
-### 📝 Blogs (`/api/blogs`)
-
-*Note: All blog routes require a valid Access Token.*
-
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/` | Get all blog posts (sorted by newest). | **Yes** |
-| `GET` | `/:id` | Get a specific blog post by its ID. | **Yes** |
-| `GET` | `/author/:author` | Get all blog posts created by a specific user ID. | **Yes** |
-| `POST` | `/` | Create a new blog post. | **Yes** |
-| `PUT` | `/:id` | Update an existing blog post (Must be the owner). | **Yes** |
-| `DELETE` | `/:id` | Delete a blog post (Must be the owner). | **Yes** |
-
-#### Example: Create Blog Request
-```json
-// POST /api/blogs/
-{
-  "title": "My First Blog API",
-  "body": "This is the main content of the blog post...",
-  "snippet": "A short summary of the blog"
-}
-```
-
----
-
-## 🛡️ Security Implementation Details
-
-1. **Password Protection:** User passwords are never stored in plain text. They are hashed using `bcrypt` with a salt round of 10 before saving to the database.
-2. **Token Storage:** To prevent Cross-Site Scripting (XSS) attacks, Access Tokens and Refresh Tokens are sent to the client via **HTTP-only, strict same-site cookies**.
-3. **Session Revocation:** The `logoutAll` endpoint clears the array of active refresh tokens in the database, instantly invalidating all active sessions for that user across all devices.
-4. **Data Ownership:** Update and Delete blog operations verify that the `userId` attached to the decoded JWT matches the `userId` stored on the blog document.
-
----
-
-*Built for learning and demonstrating Express.js API capabilities.*
+- **Why Double-Entry Accounting?** When a blog is purchased, we don't just change wallet balances. We generate two immutable `Transaction` records (a `PURCHASE` for the buyer, an `EARNING` for the author) to create an auditable financial ledger.
+- **Why Joi?** Mongoose validation only runs *after* data reaches the database layer. Joi intercepts bad data at the routing layer, protecting the server from processing invalid requests.
+- **Why Global Error Handling?** Controllers are wrapped in a custom `asyncHandler`. This completely eliminates the need for `try/catch` blocks in controllers, resulting in highly readable, declarative code.

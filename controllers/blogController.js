@@ -116,7 +116,7 @@ const deleteBlog = asyncHandler(async (req, res) => {
   });
 });
 
-const purchaseBlog = asyncHandler(async(req, res)=> {
+const purchaseBlog = asyncHandler(async (req, res) => {
   const blogId = req.params.id;
   const buyerId = req.userId;
 

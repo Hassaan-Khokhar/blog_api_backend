@@ -101,8 +101,8 @@ const logOutAllDevices = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "Successfully Logged Out of All Devices!" });
 });
 
-const rechargeWallet = asyncHandler(async(req, res)=>{
-  const {amount} = req.body;
+const rechargeWallet = asyncHandler(async (req, res) => {
+  const { amount } = req.body;
   const newBalance = await rechargeWalletService(req.userId, amount);
 
   return res.status(200).json({
@@ -111,14 +111,14 @@ const rechargeWallet = asyncHandler(async(req, res)=>{
   });
 });
 
-const getTransactionHistory = asyncHandler(async(req, res)=>{
+const getTransactionHistory = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
 
   const result = await getTransactionHistoryService(req.userId, page, limit);
 
-  if(!result.transactions || result.transactions.length === 0){
-    return res.status(404).json({message: "No transaction found"});
+  if (!result.transactions || result.transactions.length === 0) {
+    return res.status(404).json({ message: "No transaction found" });
   }
 
   return res.status(200).json(result);
