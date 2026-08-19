@@ -9,6 +9,19 @@ const blogSchema = mongoose.Schema(
       required: true
     },
     snippet: { type: String, required: true },
+    isPaid: {
+      type: Boolean,
+      default: false
+    },
+    price: {
+      type: Number,
+      default: 0
+    },
+    purchasedBy: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: 'Users',
+      default: []
+    }
   },
   { timestamps: true },
 );

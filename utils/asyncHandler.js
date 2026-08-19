@@ -7,10 +7,7 @@ const asyncHandler = (fn) => {
         try {
             await fn(req, res, next);
         } catch (error) {
-            res.status(400).json({
-                error: "Operation Failed!",
-                details: error.message
-            });
+            next(error);
         }
     };
 };

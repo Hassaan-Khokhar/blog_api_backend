@@ -2,7 +2,7 @@ import express from "express";
 import Blog from "../models/blogModel.js";
 import verifyJWT from "../middlewares/requireAuth.js";
 import asyncHandler from "../utils/asyncHandler.js";
-import { createNewBlog, editBlogService, patchBlogService, getAllBlogsService, getBlogByIdService, getBlogsByUserService, deleteBlogService } from "../services/blogService.js";
+import { createNewBlog, editBlogService, patchBlogService, getAllBlogsService, getBlogByIdService, getBlogsByUserService, deleteBlogService, purchasedBlogService } from "../services/blogService.js";
 
 const createBlog = asyncHandler(async (req, res) => {
 
@@ -63,18 +63,24 @@ const patchBlog = asyncHandler(async (req, res) => {
 });
 
 const getAllBlogs = asyncHandler(async (req, res) => {
-  const allBlogs = await getAllBlogsService();
 
-  if (!allBlogs || allBlogs.length === 0) {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const search = req.query.search || '';
+
+  const result = await getAllBlogsService(page, limit, search);
+
+  if (!result.blogs || result.blogs.length === 0) {
     return res.status(404).json({ error: "No Blogs Found!" });
   }
 
-  return res.status(200).json({ allBlogs });
+  return res.status(200).json(result);
 });
 
 const getBlogById = asyncHandler(async (req, res) => {
   const id = req.params.id;
-  const blogById = await getBlogByIdService(id);
+  const viewerId = req.userId;
+  const blogById = await getBlogByIdService(id, viewerId);
 
   if (!blogById) {
     return res.status(404).json({
@@ -110,6 +116,15 @@ const deleteBlog = asyncHandler(async (req, res) => {
   });
 });
 
+const purchaseBlog = asyncHandler(async(req, res)=> {
+  const blogId = req.params.id;
+  const buyerId = req.userId;
+
+  const result = await purchasedBlogService(buyerId, blogId);
+
+  return res.status(200).json(result);
+});
+
 export {
   createBlog,
   updateBlog,
@@ -118,4 +133,5 @@ export {
   getBlogById,
   getBlogsByUser,
   deleteBlog,
+  purchaseBlog,
 };

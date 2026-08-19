@@ -1,6 +1,9 @@
 import Users from '../models/userModel.js';
+import Transaction from '../models/transactionModel.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import config from '../config/env.js';
+import mongoose from 'mongoose';
 
 const signUpUsersService = async (username, email, password) => {
     const existingUser = await Users.findOne({ email });
@@ -26,8 +29,8 @@ const logInUserService = async (email, password) => {
     if (!isMatched) {
         throw new Error("Invalid Password!");
     }
-    const accessToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
-    const refreshToken = jwt.sign({ userId: user._id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: '30d' });
+    const accessToken = jwt.sign({ userId: user._id }, config.jwtSecret, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userId: user._id }, config.refreshTokenSecret, { expiresIn: '30d' });
 
     if (user.refreshToken.length >= 5) {
         user.refreshToken.shift();
@@ -44,12 +47,12 @@ const handleRefreshTokenService = async (refreshToken) => {
         throw new Error("Refresh Token is Invalid or is Revoked!");
     }
     try {
-        const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+        const decoded = jwt.verify(refreshToken, config.refreshTokenSecret);
         if (user._id.toString() !== decoded.userId) {
             throw new Error("Token doesn't match the User!");
         }
         const newAccessToken = jwt.sign({ userId: user._id },
-            process.env.REFRESH_TOKEN_SECRET,
+            config.refreshTokenSecret,
             { expiresIn: '15m' }
         );
         return newAccessToken;
@@ -78,4 +81,58 @@ const logOutAllDevicesService = async (userId) => {
     await user.save();
 };
 
-export { signUpUsersService, logInUserService, handleRefreshTokenService, logOutUserService, logOutAllDevicesService }
+const rechargeWalletService = async (userId, amount) => {
+    if (amount <= 0) throw new Error("Recharge amount must be greater than 0.");
+
+    const user = await Users.findById(userId);
+    if (!user) throw new Error("User not found!");
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        user.walletBalance += amount
+        await user.save({ session });
+
+        await Transaction.create({
+            userId: userId,
+            type: 'DEPOSIT',
+            amount: amount,
+            description: `Wallet recharge of ${amount}`
+        }, { session: session });
+
+        await session.commitTransaction();
+        session.endSession();
+
+        return user.walletBalance;
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        throw new Error("Issue occur while recharge, Ty again!")
+    }
+};
+
+
+
+const getTransactionHistoryService = async(userId, page =1, limit = 10)=>{
+    const skip = (page - 1) * limit;
+    const query = {userId: userId};
+
+
+    const transactions = await Transaction.find(query).sort({createdAt: -1}).skip(skip).limit(limit);
+    const totalTransactions = await Transaction.countDocuments(query);
+
+    return {
+        transactions: transactions,
+        totalPages: Math.ceil(totalTransactions/limit),
+        currentPage: page
+    };
+};
+
+export {
+    signUpUsersService,
+    logInUserService,
+    handleRefreshTokenService,
+    logOutUserService,
+    logOutAllDevicesService,
+    rechargeWalletService,
+    getTransactionHistoryService,
+}

@@ -1,6 +1,9 @@
 import Blog from '../models/blogModel.js';
+import Users from '../models/userModel.js';
+import Transaction from '../models/transactionModel.js';
+import mongoose from 'mongoose';
 
-const createNewBlog = async(blogData, userId)=>{
+const createNewBlog = async (blogData, userId) => {
     const newBlog = await Blog.create({
         ...blogData,
         userId: userId
@@ -9,54 +12,141 @@ const createNewBlog = async(blogData, userId)=>{
     return newBlog;
 };
 
-const editBlogService = async(blogId, userId, blogData) => {
+const editBlogService = async (blogId, userId, blogData) => {
     const updatedBlog = await Blog.findOneAndUpdate(
-        {_id: blogId, userId: userId},
+        { _id: blogId, userId: userId },
         {
             title: blogData.title,
             body: blogData.body,
             snippet: blogData.snippet
         },
-        {new: true}
+        { new: true }
     );
     return updatedBlog;
 };
 
-const patchBlogService = async (blogId, userId, updates) =>{
+const patchBlogService = async (blogId, userId, updates) => {
     const patchedBlog = await Blog.findOneAndUpdate(
-        {_id: blogId, userId: userId},
-        {$set: updates},
-        {new: true, runValidators: true}
+        { _id: blogId, userId: userId },
+        { $set: updates },
+        { new: true, runValidators: true }
     );
 
     return patchedBlog;
 };
 
-const getAllBlogsService = async () => {
-    const allBlogs = await Blog.find({}).sort({createdAt: -1});
+const getAllBlogsService = async (page = 1, limit = 10, search = '') => {
+    const skip = (page - 1) * limit;
 
-    return allBlogs;
+    const query = {};
+    if (search) {
+        query.$or = [
+            { title: { $regex: search, $options: 'i' } },
+            { body: { $regex: search, $options: 'i' } }
+        ];
+    }
+
+    const allBlogs = await Blog.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
+    const totalBlogs = await Blog.countDocuments(query);
+
+    return {
+        blogs: allBlogs,
+        totalPages: Math.ceil(totalBlogs / limit),
+        currentPage: page
+    };
 }
 
-const getBlogByIdService = async(blogId) => {
-    const blogById = await Blog.findOne({_id: blogId});
-    return blogById;
+const getBlogByIdService = async (blogId, viewerId) => {
+    const blog = await Blog.findById(blogId);
+    if (!blog) return null;
+
+    if (!blog.isPaid || blog.userId.toString() === viewerId || blog.purchasedBy.includes(viewerId)) {
+        return blog;
+    }
+
+    return {
+        _id: blog._id,
+        title: blog.title,
+        snippet: blog.snippet,
+        isPaid: blog.isPaid,
+        price: blog.price,
+        authorId: blog.userId,
+        message: "You must Purchase this blog to read the full body."
+    }
 }
 
-const getBlogsByUserService = async (authorId)=>{
-    const blogByUser = await Blog.find({userId: authorId}).sort({createdAt: -1});
+const getBlogsByUserService = async (authorId) => {
+    const blogByUser = await Blog.find({ userId: authorId }).sort({ createdAt: -1 });
     return blogByUser;
 };
 
-const deleteBlogService = async(blogId, userId)=>{
+const deleteBlogService = async (blogId, userId) => {
     const deleteBlog = await Blog.findOneAndDelete({
         _id: blogId,
-        userId: userId 
+        userId: userId
     });
 
     return deleteBlog;
 };
 
+const purchasedBlogService = async (buyerId, blogId) => {
+    const blog = await Blog.findById(blogId);
+    if (!blog) throw new Error("Blog Not Found!");
+    if (!blog.isPaid) throw new Error("This Blog is Free!");
+    if (blog.userId.toString() === buyerId) throw new Error("You cannot buy your own Blog!");
+    if (blog.purchasedBy.includes(buyerId)) throw new Error("You already own this blog!");
 
+    const buyer = await Users.findById(buyerId);
+    const author = await Users.findById(blog.userId);
 
-export {createNewBlog, editBlogService, patchBlogService, getAllBlogsService, getBlogByIdService, getBlogsByUserService, deleteBlogService};
+    if (buyer.walletBalance < blog.price) throw new Error("Insufficient funds in your wallet!");
+
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        buyer.walletBalance -= blog.price;
+        author.walletBalance += blog.price;
+
+        blog.purchasedBy.push(buyerId);
+
+        await Transaction.create([
+            {
+                userId: buyer._id,
+                type: 'PURCHASE',
+                amount: blog.price,
+                blogId: blog._id,
+                description: `Purchased Blog: ${blog.title}`
+            },
+            {
+                userId: author._id,
+                type: 'EARNING',
+                amount: blog.price,
+                description: `Someone purchased your Blog: ${blog.title}`
+            }
+        ], { session: session });
+
+        await buyer.save({ session });
+        await author.save({ session });
+        await blog.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
+
+        return { success: true, message: "Purchase successful!" };
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        throw new Error("Transaction Failed! Your money has been safely refunded.")
+    }
+};
+
+export {
+    createNewBlog,
+    editBlogService,
+    patchBlogService,
+    getAllBlogsService,
+    getBlogByIdService,
+    getBlogsByUserService,
+    deleteBlogService,
+    purchasedBlogService
+};
