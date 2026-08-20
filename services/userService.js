@@ -92,12 +92,12 @@ const rechargeWalletService = async (userId, amount) => {
         user.walletBalance += amount
         await user.save({ session });
 
-        await Transaction.create({
+        await Transaction.create([{
             userId: userId,
             type: 'DEPOSIT',
             amount: amount,
             description: `Wallet recharge of ${amount}`
-        }, { session: session });
+        }], { session: session });
 
         await session.commitTransaction();
         session.endSession();
@@ -106,7 +106,9 @@ const rechargeWalletService = async (userId, amount) => {
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-        throw new Error("Issue occur while recharge, Ty again!")
+        // throw new Error("Issue occur while recharge, Ty again!")
+        console.error("TRANSACTION FAILED BECAUSE: ", error);
+       throw error;
     }
 };
 

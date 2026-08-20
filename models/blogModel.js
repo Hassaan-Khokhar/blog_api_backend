@@ -16,14 +16,11 @@ const blogSchema = mongoose.Schema(
     price: {
       type: Number,
       default: 0
-    },
-    purchasedBy: {
-      type: [mongoose.Schema.Types.ObjectId],
-      ref: 'Users',
-      default: []
     }
   },
   { timestamps: true },
 );
+
+blogSchema.index({title: 'text', snippet: 'text', body: 'text'})
 const Blog = mongoose.model("Blog", blogSchema);
 export default Blog;

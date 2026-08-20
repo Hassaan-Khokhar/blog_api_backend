@@ -1,16 +1,17 @@
 # 🧪 End-to-End Testing Data & Flow
 
-This file contains all the JSON payloads and testing steps required to test the entire Blog API from scratch, simulating a real economy. Follow these steps in Postman.
+This file contains all the JSON payloads and testing steps required to test the entire Blog API from scratch, simulating a real economy. Follow these steps in Postman or Thunder Client.
 
 ---
 
 ## 👥 1. Create Users (Sign Up)
-**Endpoint:** `POST /api/users/signup`
+**Endpoint:** `POST /api/auth/signup`
+*(Note: We updated the User validation! Usernames must now be Alphabetical with maximum 3 spaces. No numbers or symbols!)*
 
 **User 1 (The Author)**
 ```json
 {
-    "username": "TechGuru",
+    "username": "Tech Guru",
     "email": "guru@test.com",
     "password": "password123"
 }
@@ -19,7 +20,7 @@ This file contains all the JSON payloads and testing steps required to test the 
 **User 2 (The Rich Reader)**
 ```json
 {
-    "username": "BigSpender",
+    "username": "Big Spender",
     "email": "rich@test.com",
     "password": "password123"
 }
@@ -28,7 +29,7 @@ This file contains all the JSON payloads and testing steps required to test the 
 **User 3 (The Broke Reader)**
 ```json
 {
-    "username": "BrokeStudent",
+    "username": "Broke Student",
     "email": "broke@test.com",
     "password": "password123"
 }
@@ -37,7 +38,7 @@ This file contains all the JSON payloads and testing steps required to test the 
 **User 4 (The Casual Reader)**
 ```json
 {
-    "username": "CasualReader",
+    "username": "Casual Reader",
     "email": "casual@test.com",
     "password": "password123"
 }
@@ -46,9 +47,9 @@ This file contains all the JSON payloads and testing steps required to test the 
 ---
 
 ## 🔑 2. Login & Grab Tokens
-**Endpoint:** `POST /api/users/login`
+**Endpoint:** `POST /api/auth/login`
 
-Log in as **TechGuru** (User 1) and **BigSpender** (User 2). Copy their `accessToken`s. 
+Log in as **Tech Guru** (User 1) and **Big Spender** (User 2). Copy their `accessToken`s. 
 *You will need to set these in Postman's "Authorization" tab -> "Bearer Token" for the protected routes below.*
 ```json
 {
@@ -59,23 +60,23 @@ Log in as **TechGuru** (User 1) and **BigSpender** (User 2). Copy their `accessT
 
 ---
 
-## 💰 3. Recharge Wallets
+## 💰 3. Recharge Wallets (Enterprise Transaction Testing)
 **Endpoint:** `POST /api/users/recharge` (Requires JWT)
 
-Log in as **BigSpender**, use their token, and give them $1000.
+Log in as **Big Spender**, use their token, and give them $1000. *(This will securely use the ACID MongoDB Transaction logic)*.
 ```json
 {
     "amount": 1000
 }
 ```
-*(Do not recharge BrokeStudent, so we can test the insufficient funds error later).*
+*(Do not recharge Broke Student, so we can test the insufficient funds error later).*
 
 ---
 
 ## 📝 4. Seed the Blogs (Create 15+ Blogs)
 **Endpoint:** `POST /api/blogs` (Requires JWT)
 
-Log in as **TechGuru**, use their token, and run these 15 payloads one by one to populate your database.
+Log in as **Tech Guru**, use their token, and run these 15 payloads one by one to populate your database.
 
 **Blog 1 (Free)**
 ```json
@@ -239,52 +240,54 @@ Log in as **TechGuru**, use their token, and run these 15 payloads one by one to
 
 ---
 
-## 🔍 5. Test Pagination & Search (No Token Needed)
+## 🔍 5. Test Pagination & Lightning Fast Text Search (No Token Needed)
 Now that the database is full, test the public routes:
 
-1. **GET** `/api/blogs?page=1&limit=5` (Should return the 5 newest blogs)
+1. **GET** `/api/blogs?page=1&limit=5` (Should return the 5 newest blogs, handled perfectly by the page/limit logic)
 2. **GET** `/api/blogs?page=2&limit=5` (Should return the next 5)
-3. **GET** `/api/blogs?search=React` (Should return only Blog #2)
+3. **GET** `/api/blogs?search=React` (Will now instantly hit your new **MongoDB Text Index** and return Blog #2)
 
 ---
 
-## 🛒 6. Test Purchasing Economy
+## 🛒 6. Test Purchasing Economy (Double-Entry Ledger)
 **Endpoint:** `POST /api/blogs/:id/purchase` (Requires JWT)
 
 Grab the `_id` of Blog #3 ("Advanced Node.js Architecture" - Price: $200).
 
-1. Log in as **BrokeStudent**, get token, and try to purchase.
+1. Log in as **Broke Student**, get token, and try to purchase.
    - *Result: 400 Bad Request ("Insufficient funds")*
-2. Log in as **TechGuru** (the author), get token, and try to purchase.
+2. Log in as **Tech Guru** (the author), get token, and try to purchase.
    - *Result: 400 Bad Request ("You cannot buy your own Blog")*
-3. Log in as **BigSpender**, get token, and purchase.
-   - *Result: 200 OK ("Purchase successful")*
+3. Log in as **Big Spender**, get token, and purchase.
+   - *Result: 200 OK ("Purchase successful" - Wallet balances update and 2 Transactions are created)*
+4. Log in as **Big Spender** and try to purchase again.
+   - *Result: 400 Bad Request ("You already own this Blog!")*
 
 ---
 
-## 📖 7. Test Access Control
-**Endpoint:** `GET /api/blogs/:id` (Requires JWT)
+## 📖 7. Test Access Control (Referential Lookups)
+**Endpoint:** `GET /api/blogs/:id`
 
 Using the same `_id` of Blog #3:
-1. Try fetching it with **BrokeStudent's** token.
+1. Try fetching it with **Broke Student's** token (or no token).
    - *Result: You only see the title/snippet, body is hidden.*
-2. Try fetching it with **BigSpender's** token.
-   - *Result: You can see the full body because they bought it!*
+2. Try fetching it with **Big Spender's** token.
+   - *Result: The Compound Index instantly checks the Transaction Ledger, verifies ownership, and returns the full body!*
 
 ---
 
-## 🏦 8. Test the Financial Ledgers
+## 🏦 8. Test the Financial Ledgers (Pre-Sorted Search)
 **Endpoint:** `GET /api/users/transactions` (Requires JWT)
 
-1. Check **BigSpender's** token.
-   - *Result: A `DEPOSIT` of 1000, and a `PURCHASE` of 200.*
-2. Check **TechGuru's** token.
+1. Check **Big Spender's** token.
+   - *Result: A `DEPOSIT` of 1000, and a `PURCHASE` of 200. (Instantly pulled via the Pre-Sorted Compound Index).*
+2. Check **Tech Guru's** token.
    - *Result: An `EARNING` of 200.*
 
 ---
 
 ## 🔄 9. Test Refresh Tokens
-**Endpoint:** `GET /api/users/refresh`
+**Endpoint:** `GET /api/auth/refresh`
 
 Wait 15 minutes (or change JWT expiration to 1m) until your Access Token expires.
 Send the Refresh Token (which is stored in a cookie automatically if testing in browser, or send it in JSON body).

@@ -11,8 +11,9 @@ This is not a standard CRUD application. This API features a **fully functional 
 - **Decoupled Architecture:** Strict separation of concerns using the Controller-Service-Model pattern.
 - **ACID Financial Transactions:** Uses Mongoose Sessions (`startTransaction`, `commitTransaction`, `abortTransaction`) to guarantee that funds are never lost during server crashes.
 - **Bulletproof Error Handling:** A centralized, global error-handling middleware that intercepts and formats native Mongoose errors (`CastError`, `ValidationError`, `11000 Duplicate Key`) and `JsonWebToken` errors into clean API responses.
-- **Data Validation Pipeline:** All incoming requests are sanitized and validated using **Joi** schemas before reaching the controllers.
-- **Advanced Querying:** Supports paginated results and regex-based case-insensitive searching to handle massive datasets without consuming server memory.
+- **Strict Data Validation:** All incoming requests are sanitized and validated using **Joi** schemas (including Strict Regex pattern filtering) before reaching the controllers.
+- **High-Performance Search:** Uses native **MongoDB Text Indexes** (`$text`) to provide lightning-fast, full-text searching without triggering expensive collection scans.
+- **Enterprise Referential Architecture:** Eliminates MongoDB anti-patterns (like unbounded arrays) by utilizing **Compound Indexes** and referential lookups for access control and transaction sorting.
 - **Robust Security:** Implements `helmet` for HTTP header security and `express-rate-limit` to block brute-force bot attacks.
 - **JWT Authentication:** Secure user sessions using short-lived Access Tokens and long-lived Refresh Tokens.
 
@@ -89,5 +90,7 @@ npm start
 ## 🛡️ Architecture & Design Decisions
 
 - **Why Double-Entry Accounting?** When a blog is purchased, we don't just change wallet balances. We generate two immutable `Transaction` records (a `PURCHASE` for the buyer, an `EARNING` for the author) to create an auditable financial ledger.
+- **Why No "purchasedBy" Array?** Storing a massive array of users inside a Blog document causes the "Unbounded Array" anti-pattern, which crashes the database when it hits 16MB. Instead, this API queries the Transaction Ledger using a Compound Index to verify ownership.
+- **Why Text Indexes?** Standard `$regex` searching forces MongoDB to do a Collection Scan (O(N)), which severely damages performance. Text Indexes create an optimized dictionary for instant search results.
 - **Why Joi?** Mongoose validation only runs *after* data reaches the database layer. Joi intercepts bad data at the routing layer, protecting the server from processing invalid requests.
 - **Why Global Error Handling?** Controllers are wrapped in a custom `asyncHandler`. This completely eliminates the need for `try/catch` blocks in controllers, resulting in highly readable, declarative code.

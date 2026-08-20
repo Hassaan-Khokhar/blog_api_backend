@@ -40,10 +40,7 @@ const getAllBlogsService = async (page = 1, limit = 10, search = '') => {
 
     const query = {};
     if (search) {
-        query.$or = [
-            { title: { $regex: search, $options: 'i' } },
-            { body: { $regex: search, $options: 'i' } }
-        ];
+        query.$text = {$search: search};
     }
 
     const allBlogs = await Blog.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
@@ -60,7 +57,13 @@ const getBlogByIdService = async (blogId, viewerId) => {
     const blog = await Blog.findById(blogId);
     if (!blog) return null;
 
-    if (!blog.isPaid || blog.userId.toString() === viewerId || blog.purchasedBy.includes(viewerId)) {
+    let hasPurchased = false;
+    if (viewerId) {
+        const recipt = await Transaction.findOne({userId: viewerId, blogId: blogId, type: 'PURCHASE'});
+        if (recipt) hasPurchased = true;
+    }   
+
+    if (!blog.isPaid || blog.userId.toString() === viewerId || hasPurchased) {
         return blog;
     }
 
@@ -94,7 +97,8 @@ const purchasedBlogService = async (buyerId, blogId) => {
     if (!blog) throw new Error("Blog Not Found!");
     if (!blog.isPaid) throw new Error("This Blog is Free!");
     if (blog.userId.toString() === buyerId) throw new Error("You cannot buy your own Blog!");
-    if (blog.purchasedBy.includes(buyerId)) throw new Error("You already own this blog!");
+    const existingTransaction = await Transaction.findOne({userId: buyerId, blogId: blogId, type: 'PURCHASE'});
+    if(existingTransaction) throw new Error("You already own this Blog!");
 
     const buyer = await Users.findById(buyerId);
     const author = await Users.findById(blog.userId);
@@ -106,8 +110,6 @@ const purchasedBlogService = async (buyerId, blogId) => {
     try {
         buyer.walletBalance -= blog.price;
         author.walletBalance += blog.price;
-
-        blog.purchasedBy.push(buyerId);
 
         await Transaction.create([
             {
@@ -127,7 +129,6 @@ const purchasedBlogService = async (buyerId, blogId) => {
 
         await buyer.save({ session });
         await author.save({ session });
-        await blog.save({ session });
 
         await session.commitTransaction();
         session.endSession();

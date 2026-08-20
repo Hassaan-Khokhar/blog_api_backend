@@ -29,5 +29,8 @@ const transactionSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
+transactionSchema.index({userId: 1, blogId: 1, type: 1 });
+transactionSchema.index({ userId: 1, createdAt: -1 });
+
 const Transaction = mongoose.model("Transaction", transactionSchema);
 export default Transaction;
