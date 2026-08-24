@@ -96,14 +96,17 @@ const getBlogById = asyncHandler(async (req, res) => {
 
 const getBlogsByUser = asyncHandler(async (req, res) => {
   const userId = req.params.author;
-  const blogsByAuthor = await getBlogsByUserService(userId);
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
 
-  if (blogsByAuthor.length === 0) {
+  const result = await getBlogsByUserService(userId, page, limit);
+
+  if (result.blogs.length === 0) {
     return res.status(404).json({
       message: "No Blog by This Author!",
     });
   }
-  return res.status(200).json({ blogsByAuthor });
+  return res.status(200).json(result);
 });
 
 const deleteBlog = asyncHandler(async (req, res) => {

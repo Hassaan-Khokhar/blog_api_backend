@@ -9,7 +9,7 @@ route.use(verifyJWT);
 
 route.post('/', validateRequest(blogValidation.createBlogSchema), blogControllers.createBlog);
 route.get('/', blogControllers.getAllBlogs);
-route.post('/:id/purchase', blogControllers.purchaseBlog)
+route.post('/:id/buy', blogControllers.purchaseBlog)
 route.get('/:id', blogControllers.getBlogById);
 route.get('/author/:author', blogControllers.getBlogsByUser);
 route.put('/:id', validateRequest(blogValidation.updateBlogSchema), blogControllers.updateBlog);

@@ -5,7 +5,17 @@ export const createBlogSchema = joi.object({
     snippet: joi.string().min(10).max(200).required(),
     body: joi.string().min(20).required(),
     isPaid: joi.boolean().optional(),
-    price: joi.number().min(0).optional()
+    price: joi.number().when('isPaid', {
+        is: true,
+        then: joi.number().greater(0).required().messages({
+            'number.greater': 'A Paid blog must have a price greater than 0!',
+            'any.required': 'You must provide a price if the blog is Paid!'
+        }),
+        otherwise: joi.number().valid(0).optional().messages({
+            'any.only': 'A Free blog must have a price of exactly 0.'
+        })
+    })
+
 });
 
 export const updateBlogSchema = joi.object({
@@ -13,5 +23,15 @@ export const updateBlogSchema = joi.object({
     snippet: joi.string().min(10).max(200).required(),
     body: joi.string().min(20).required(),
     isPaid: joi.boolean().optional(),
-    price: joi.number().min(0).optional()
+    price: joi.number().when('isPaid', {
+        is: true,
+        then: joi.number().greater(0).required().messages({
+            'number.greater': 'A Paid blog must have a price greater than 0!',
+            'any.required': 'You must provide a price if the blog is Paid!'
+        }),
+        otherwise: joi.number().valid(0).optional().messages({
+            'any.only': 'A Free blog must have a price of exactly 0.'
+        })
+    })
+
 });

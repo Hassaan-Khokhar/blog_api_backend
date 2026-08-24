@@ -59,7 +59,7 @@ const getBlogByIdService = async (blogId, viewerId) => {
 
     let hasPurchased = false;
     if (viewerId) {
-        const recipt = await Transaction.findOne({ userId: viewerId, blogId: blogId, type: 'PURCHASE' });
+        const recipt = await Transaction.findOne({ userId: viewerId, blogId: blogId, type: 'BUY' });
         if (recipt) hasPurchased = true;
     }
 
@@ -78,9 +78,15 @@ const getBlogByIdService = async (blogId, viewerId) => {
     }
 }
 
-const getBlogsByUserService = async (authorId) => {
-    const blogByUser = await Blog.find({ userId: authorId }).sort({ createdAt: -1 });
-    return blogByUser;
+const getBlogsByUserService = async (authorId, page = 1, limit = 10) => {
+    const skip = (page - 1 ) * limit;
+    const blogByUser = await Blog.find({ userId: authorId }).sort({ createdAt: -1 }).skip(skip).limit(limit);
+    const totalBlogs = await Blog.countDocuments({ userId: authorId });
+    return {
+        blogs: blogByUser,
+        totalPages: Math.ceil(totalBlogs / limit),
+        currentPage: page
+    };
 };
 
 const deleteBlogService = async (blogId, userId) => {
@@ -97,7 +103,7 @@ const purchasedBlogService = async (buyerId, blogId) => {
     if (!blog) throw new Error("Blog Not Found!");
     if (!blog.isPaid) throw new Error("This Blog is Free!");
     if (blog.userId.toString() === buyerId) throw new Error("You cannot buy your own Blog!");
-    const existingTransaction = await Transaction.findOne({ userId: buyerId, blogId: blogId, type: 'PURCHASE' });
+    const existingTransaction = await Transaction.findOne({ userId: buyerId, blogId: blogId, type: 'BUY' });
     if (existingTransaction) throw new Error("You already own this Blog!");
 
     const buyer = await Users.findById(buyerId);
@@ -113,7 +119,7 @@ const purchasedBlogService = async (buyerId, blogId) => {
 
         const buyerTransaction = new Transaction({
             userId: buyer._id,
-            type: 'PURCHASE',
+            type: 'BUY',
             amount: blog.price,
             blogId: blog._id,
             description: `Purchased Blog: ${blog.title}`
@@ -121,7 +127,7 @@ const purchasedBlogService = async (buyerId, blogId) => {
 
         const authorTransaction = new Transaction({
             userId: author._id,
-            type: 'EARNING',
+            type: 'SELL',
             amount: blog.price,
             description: `Someone purchased your Blog: ${blog.title}`
         });
