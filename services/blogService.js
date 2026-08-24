@@ -40,10 +40,10 @@ const getAllBlogsService = async (page = 1, limit = 10, search = '') => {
 
     const query = {};
     if (search) {
-        query.$text = {$search: search};
+        query.$text = { $search: search };
     }
 
-    const allBlogs = await Blog.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
+    const allBlogs = await Blog.find(query).select('-body -createdAt -updatedAt -__v').sort({ createdAt: -1 }).skip(skip).limit(limit);
     const totalBlogs = await Blog.countDocuments(query);
 
     return {
@@ -59,9 +59,9 @@ const getBlogByIdService = async (blogId, viewerId) => {
 
     let hasPurchased = false;
     if (viewerId) {
-        const recipt = await Transaction.findOne({userId: viewerId, blogId: blogId, type: 'PURCHASE'});
+        const recipt = await Transaction.findOne({ userId: viewerId, blogId: blogId, type: 'PURCHASE' });
         if (recipt) hasPurchased = true;
-    }   
+    }
 
     if (!blog.isPaid || blog.userId.toString() === viewerId || hasPurchased) {
         return blog;
@@ -97,8 +97,8 @@ const purchasedBlogService = async (buyerId, blogId) => {
     if (!blog) throw new Error("Blog Not Found!");
     if (!blog.isPaid) throw new Error("This Blog is Free!");
     if (blog.userId.toString() === buyerId) throw new Error("You cannot buy your own Blog!");
-    const existingTransaction = await Transaction.findOne({userId: buyerId, blogId: blogId, type: 'PURCHASE'});
-    if(existingTransaction) throw new Error("You already own this Blog!");
+    const existingTransaction = await Transaction.findOne({ userId: buyerId, blogId: blogId, type: 'PURCHASE' });
+    if (existingTransaction) throw new Error("You already own this Blog!");
 
     const buyer = await Users.findById(buyerId);
     const author = await Users.findById(blog.userId);
@@ -111,21 +111,24 @@ const purchasedBlogService = async (buyerId, blogId) => {
         buyer.walletBalance -= blog.price;
         author.walletBalance += blog.price;
 
-        await Transaction.create([
-            {
-                userId: buyer._id,
-                type: 'PURCHASE',
-                amount: blog.price,
-                blogId: blog._id,
-                description: `Purchased Blog: ${blog.title}`
-            },
-            {
-                userId: author._id,
-                type: 'EARNING',
-                amount: blog.price,
-                description: `Someone purchased your Blog: ${blog.title}`
-            }
-        ], { session: session });
+        const buyerTransaction = new Transaction({
+            userId: buyer._id,
+            type: 'PURCHASE',
+            amount: blog.price,
+            blogId: blog._id,
+            description: `Purchased Blog: ${blog.title}`
+        });
+
+        const authorTransaction = new Transaction({
+            userId: author._id,
+            type: 'EARNING',
+            amount: blog.price,
+            description: `Someone purchased your Blog: ${blog.title}`
+        });
+
+        await buyerTransaction.save({ session });
+        await authorTransaction.save({ session });
+
 
         await buyer.save({ session });
         await author.save({ session });
@@ -135,6 +138,9 @@ const purchasedBlogService = async (buyerId, blogId) => {
 
         return { success: true, message: "Purchase successful!" };
     } catch (error) {
+        
+        console.log("THE REAL ERROR IS:", error.message);
+
         await session.abortTransaction();
         session.endSession();
         throw new Error("Transaction Failed! Your money has been safely refunded.")

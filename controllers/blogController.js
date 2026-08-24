@@ -9,7 +9,9 @@ const createBlog = asyncHandler(async (req, res) => {
   const blogData = {
     title: req.body.title,
     body: req.body.body,
-    snippet: req.body.snippet
+    snippet: req.body.snippet,
+    isPaid: req.body.isPaid,
+    price: req.body.price
   };
   const securedUserId = req.userId;
 
@@ -27,7 +29,9 @@ const updateBlog = asyncHandler(async (req, res) => {
   const blogData = {
     title: req.body.title,
     body: req.body.body,
-    snippet: req.body.snippet
+    snippet: req.body.snippet,
+    isPaid: req.body.isPaid,
+    price: req.body.price
   };
 
   const updatedBlog = await editBlogService(id, securedUserId, blogData);
