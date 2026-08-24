@@ -43,17 +43,22 @@ const handleRefreshToken = asyncHandler(async (req, res) => {
     refreshToken = req.body.refreshToken;
   }
 
-  if (!refreshToken)
-    return res.status(401).json({ error: "No Refresh Token Provided" });
-  const newAccessToken = await handleRefreshTokenService(refreshToken);
+  if (!refreshToken) return res.status(401).json({ error: "No Refresh Token Provided" });
+  const { newAccessToken, newRefreshToken } = await handleRefreshTokenService(refreshToken);
   res.cookie("accessToken", newAccessToken, {
     httpOnly: true,
     sameSite: "strict",
     maxAge: 1000 * 60 * 15,
     secure: true,
   });
-
-  return res.status(200).json({ accessToken: newAccessToken });
+  res.cookie("refreshToken", newRefreshToken, {
+    httpOnly: true,
+    sameSite: "strict",
+    maxAge: 1000 * 60 * 60 * 24 * 30,
+    secure: true,
+  });
+  
+  return res.status(200).json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
 
 });
 

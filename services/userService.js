@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import config from '../config/env.js';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
 
 const signUpUsersService = async (username, email, password) => {
     const existingUser = await Users.findOne({ email });
@@ -29,8 +30,8 @@ const logInUserService = async (email, password) => {
     if (!isMatched) {
         throw new Error("Invalid Password!");
     }
-    const accessToken = jwt.sign({ userId: user._id }, config.jwtSecret, { expiresIn: '15m' });
-    const refreshToken = jwt.sign({ userId: user._id }, config.refreshTokenSecret, { expiresIn: '30d' });
+    const accessToken = jwt.sign({ userId: user._id, nonce: crypto.randomUUID() }, config.jwtSecret, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userId: user._id, nonce: crypto.randomUUID() }, config.refreshTokenSecret, { expiresIn: '30d' });
 
     if (user.refreshToken.length >= 5) {
         user.refreshToken.shift();
@@ -42,24 +43,40 @@ const logInUserService = async (email, password) => {
 }
 
 const handleRefreshTokenService = async (refreshToken) => {
-    const user = await Users.findOne({ refreshToken });
-    if (!user) {
-        throw new Error("Refresh Token is Invalid or is Revoked!");
-    }
+    let decoded;
     try {
-        const decoded = jwt.verify(refreshToken, config.refreshTokenSecret);
-        if (user._id.toString() !== decoded.userId) {
-            throw new Error("Token doesn't match the User!");
-        }
-        const newAccessToken = jwt.sign({ userId: user._id },
-            config.refreshTokenSecret,
-            { expiresIn: '15m' }
-        );
-        return newAccessToken;
+        decoded = jwt.verify(refreshToken, config.refreshTokenSecret);
     } catch (err) {
-        throw new Error("Refresh Token Expired or Invalid");
-
+        throw new Error("Refresh Token Expired or is Revoked!");
     }
+
+    const user = await Users.findOne({ _id: decoded.userId });
+
+    if (!user) throw new Error("User not Found!");
+
+    if (!user.refreshToken.includes(refreshToken)) {
+        user.refreshToken = [];
+        await user.save();
+        throw new Error("Security ALERT: Token reuse Detected. All sessions have been revoked!");
+    }
+
+    user.refreshToken = user.refreshToken.filter(token => token !== refreshToken);
+
+    const newAccessToken = jwt.sign({ userId: user._id, nonce: crypto.randomUUID() },
+        config.jwtSecret,
+        { expiresIn: '15m' }
+    );
+    const newRefreshToken = jwt.sign(
+        { userId: user._id, nonce: crypto.randomUUID() },
+        config.refreshTokenSecret,
+        { expiresIn: '30d' }
+    )
+
+    user.refreshToken.push(newRefreshToken);
+    await user.save();
+
+    return {newAccessToken, newRefreshToken};
+
 };
 
 const logOutUserService = async (oldRefreshToken) => {
@@ -108,7 +125,7 @@ const rechargeWalletService = async (userId, amount) => {
         session.endSession();
         // throw new Error("Issue occur while recharge, Ty again!")
         console.error("TRANSACTION FAILED BECAUSE: ", error);
-       throw error;
+        throw error;
     }
 };
 
