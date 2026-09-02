@@ -6,7 +6,6 @@ import verifyJWT from "../middlewares/requireAuth.js";
 const transactionRoute = express.Router();
 
 transactionRoute.post('/recharge', verifyJWT, validateRequest(transactionValidation.rechargeWalletSchema), rechargeWallet);
-transactionRoute.get('/transactions', verifyJWT, getTransactionHistory);
 transactionRoute.post('/add-bank', verifyJWT, validateRequest(transactionValidation.addBankSchema), addBankAccount);
 transactionRoute.post('/withdraw', verifyJWT, validateRequest(transactionValidation.withdrawWalletSchema), withdrawWallet);
 

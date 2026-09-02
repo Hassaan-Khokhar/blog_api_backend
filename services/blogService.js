@@ -109,6 +109,7 @@ const purchasedBlogService = async (buyerId, blogId) => {
     const buyer = await Users.findById(buyerId);
     const author = await Users.findById(blog.userId);
 
+    if (!author) throw new Error("The author of this blog no longer exists!");
     if (buyer.walletBalance < blog.price) throw new Error("Insufficient funds in your wallet!");
 
     const session = await mongoose.startSession();
@@ -129,6 +130,7 @@ const purchasedBlogService = async (buyerId, blogId) => {
             userId: author._id,
             type: 'SELL',
             amount: blog.price,
+            blogId: blog._id,
             description: `Someone purchased your Blog: ${blog.title}`
         });
 
@@ -144,12 +146,11 @@ const purchasedBlogService = async (buyerId, blogId) => {
 
         return { success: true, message: "Purchase successful!" };
     } catch (error) {
-        
-        console.log("THE REAL ERROR IS:", error.message);
+        console.error("THE REAL ERROR IS:", error);
 
         await session.abortTransaction();
         session.endSession();
-        throw new Error("Transaction Failed! Your money has been safely refunded.")
+        throw new Error(`Transaction Failed: ${error.message}`);
     }
 };
 
