@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import connectDb from './db.js';
 import route from './routes/blogRoutes.js';
 import authRoute from './routes/authRoutes.js';
+import transactionRoute from './routes/transactionRoutes.js';
 import errorHandler from './middlewares/errorHandler.js';
 import config from './config/env.js';
 
@@ -29,6 +30,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use('/api/blogs', route);
 app.use('/api/users', authRoute);
+app.use('/api/transactions', transactionRoute);
 
 app.use((req, res, next) => {
     const error = new Error(`Route not found: ${req.originalUrl}`);

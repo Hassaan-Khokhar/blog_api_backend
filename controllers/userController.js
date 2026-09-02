@@ -1,9 +1,9 @@
-import { getTransactionHistoryService, handleRefreshTokenService, logInUserService, logOutAllDevicesService, logOutUserService, rechargeWalletService, signUpUsersService } from "../services/userService.js";
+import { handleRefreshTokenService, logInUserService, logOutAllDevicesService, logOutUserService, signUpUsersService, submitKycService } from "../services/userService.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
 const signUpUser = asyncHandler(async (req, res) => {
-  const { username, email, password } = req.body;
-  const newUser = await signUpUsersService(username, email, password);
+  const { username, email, password, firstName, lastName } = req.body;
+  const newUser = await signUpUsersService(username, email, password, firstName, lastName);
   return res.status(201).json({
     message: "User Signed Up Successfully! Proceed to Login",
     Users: newUser,
@@ -105,28 +105,11 @@ const logOutAllDevices = asyncHandler(async (req, res) => {
   });
   res.status(200).json({ message: "Successfully Logged Out of All Devices!" });
 });
+const submitKyc = asyncHandler(async (req, res) => {
+  const kycData = req.body;
+  const message = await submitKycService(req.userId, kycData);
 
-const rechargeWallet = asyncHandler(async (req, res) => {
-  const { amount } = req.body;
-  const newBalance = await rechargeWalletService(req.userId, amount);
-
-  return res.status(200).json({
-    message: "Wallet recharged successfully!",
-    walletBalance: newBalance
-  });
-});
-
-const getTransactionHistory = asyncHandler(async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-
-  const result = await getTransactionHistoryService(req.userId, page, limit);
-
-  if (!result.transactions || result.transactions.length === 0) {
-    return res.status(404).json({ message: "No transaction found" });
-  }
-
-  return res.status(200).json(result);
+  return res.status(200).json({ message });
 });
 
 export {
@@ -135,6 +118,5 @@ export {
   handleRefreshToken,
   logOutUser,
   logOutAllDevices,
-  rechargeWallet,
-  getTransactionHistory
+  submitKyc
 };

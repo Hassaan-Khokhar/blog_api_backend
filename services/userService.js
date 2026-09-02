@@ -4,9 +4,43 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import config from '../config/env.js';
 import mongoose from 'mongoose';
-import crypto from 'crypto';
+import { ensureStripeProfiles } from './transactionService.js';
 
-const signUpUsersService = async (username, email, password) => {
+
+const submitKycService = async (userId, kycData) =>{
+    let user = await Users.findById(userId);
+    if(!user) throw new Error("User not Found!");
+    if(user.kycCompleted) throw new Error("KYC is already completed!");
+
+    user = await ensureStripeProfiles(user);
+
+    const stripeResponse = await fetch(`https://api.stripe.com/v1/accounts/${user.stripeAccountId}`, {
+        method: 'POST', 
+        headers: {
+            'Authorization': `Bearer ${config.stripeSecretKey}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `individual[dob][day]=${kycData.dob.day}&individual[dob][month]=${kycData.dob.month}&individual[dob][year]=${kycData.dob.year}&individual[address][line1]=${kycData.address.line1}&individual[address][city]=${kycData.address.city}&individual[address][state]=${kycData.address.state}&individual[address][postal_code]=${kycData.address.postal_code}&individual[first_name]=${kycData.legalFirstName}&individual[last_name]=${kycData.legalLastName}&individual[verification][document][front]=file_identity_document_success&business_profile[product_description]=Independent%20writer%20selling%20blogs%20on%20this%20platform`
+    });
+
+    const stripeData = await stripeResponse.json();
+    if (!stripeResponse.ok) throw new Error(stripeData.error?.message || "Stripe rejected KYC data");
+
+    user.kycCompleted = true;
+    
+    await user.save();
+
+    return "KYC securely processed and sent to Stripe!";
+} 
+
+
+
+const signUpUsersService = async (username, email, password, firstName, lastName) => {
+    const existingUsername = await Users.findOne({ username });
+    if (existingUsername) {
+        throw new Error('Username is already in use!');
+    }
+
     const existingUser = await Users.findOne({ email });
     if (existingUser) {
         throw new Error('Email already registered!');
@@ -16,7 +50,9 @@ const signUpUsersService = async (username, email, password) => {
     const newUser = await Users.create({
         username,
         email,
-        password: hashedPassword
+        password: hashedPassword,
+        firstName,
+        lastName
     });
     return newUser;
 };
@@ -75,7 +111,7 @@ const handleRefreshTokenService = async (refreshToken) => {
     user.refreshToken.push(newRefreshToken);
     await user.save();
 
-    return {newAccessToken, newRefreshToken};
+    return { newAccessToken, newRefreshToken };
 
 };
 
@@ -98,61 +134,13 @@ const logOutAllDevicesService = async (userId) => {
     await user.save();
 };
 
-const rechargeWalletService = async (userId, amount) => {
-    if (amount <= 0) throw new Error("Recharge amount must be greater than 0.");
 
-    const user = await Users.findById(userId);
-    if (!user) throw new Error("User not found!");
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    try {
-        user.walletBalance += amount
-        await user.save({ session });
-
-        await Transaction.create([{
-            userId: userId,
-            type: 'DEPOSIT',
-            amount: amount,
-            description: `Wallet recharge of ${amount}`
-        }], { session: session });
-
-        await session.commitTransaction();
-        session.endSession();
-
-        return user.walletBalance;
-    } catch (error) {
-        await session.abortTransaction();
-        session.endSession();
-        // throw new Error("Issue occur while recharge, Ty again!")
-        console.error("TRANSACTION FAILED BECAUSE: ", error);
-        throw error;
-    }
-};
-
-
-
-const getTransactionHistoryService = async (userId, page = 1, limit = 10) => {
-    const skip = (page - 1) * limit;
-    const query = { userId: userId };
-
-    const user = await Users.findById(userId).select('walletBalance');
-    const transactions = await Transaction.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
-    const totalTransactions = await Transaction.countDocuments(query);
-
-    return {
-        currentBalance: user.walletBalance,
-        transactions: transactions,
-        totalPages: Math.ceil(totalTransactions / limit),
-        currentPage: page
-    };
-};
 
 export {
-    signUpUsersService,
-    logInUserService,
-    handleRefreshTokenService,
-    logOutUserService,
-    logOutAllDevicesService,
-    rechargeWalletService,
-    getTransactionHistoryService,
-}
+  signUpUsersService,
+  logInUserService,
+  handleRefreshTokenService,
+  logOutUserService,
+  logOutAllDevicesService,
+  submitKycService
+};
