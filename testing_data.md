@@ -1,19 +1,21 @@
-# 🧪 End-to-End Testing Data & Flow
+# 🧪 End-to-End Testing Data & Flow (Including Stripe)
 
-This file contains all the JSON payloads and testing steps required to test the entire Blog API from scratch, simulating a real economy. Follow these steps in Postman or Thunder Client.
+This file contains all the JSON payloads and testing steps required to test the entire Blog API from scratch, simulating a real economy with real Stripe interactions. Follow these steps in Postman or Thunder Client.
 
 ---
 
 ## 👥 1. Create Users (Sign Up)
-**Endpoint:** `POST /api/auth/signup`
-*(Note: We updated the User validation! Usernames must now be Alphabetical with maximum 3 spaces. No numbers or symbols!)*
+**Endpoint:** `POST /api/users/signup`
+*(Note: Usernames must be alphabetical with a maximum of 3 spaces. No numbers or symbols!)*
 
 **User 1 (The Author)**
 ```json
 {
     "username": "Tech Guru",
     "email": "guru@test.com",
-    "password": "password123"
+    "password": "password123!",
+    "firstName": "Tech",
+    "lastName": "Guru"
 }
 ```
 
@@ -22,7 +24,9 @@ This file contains all the JSON payloads and testing steps required to test the 
 {
     "username": "Big Spender",
     "email": "rich@test.com",
-    "password": "password123"
+    "password": "password123!",
+    "firstName": "Big",
+    "lastName": "Spender"
 }
 ```
 
@@ -31,42 +35,38 @@ This file contains all the JSON payloads and testing steps required to test the 
 {
     "username": "Broke Student",
     "email": "broke@test.com",
-    "password": "password123"
-}
-```
-
-**User 4 (The Casual Reader)**
-```json
-{
-    "username": "Casual Reader",
-    "email": "casual@test.com",
-    "password": "password123"
+    "password": "password123!",
+    "firstName": "Broke",
+    "lastName": "Student"
 }
 ```
 
 ---
 
-## 🔑 2. Login & Grab Tokens
-**Endpoint:** `POST /api/auth/login`
+## 🔑 2. Login & Authenticate
+**Endpoint:** `POST /api/users/login`
 
-Log in as **Tech Guru** (User 1) and **Big Spender** (User 2). Copy their `accessToken`s. 
-*You will need to set these in Postman's "Authorization" tab -> "Bearer Token" for the protected routes below.*
+Log in as **Tech Guru** (User 1) and **Big Spender** (User 2). 
+*(Note: Your backend sets the `accessToken` in HTTP-Only Cookies automatically! Postman will pass it for you behind the scenes for all protected routes below).*
 ```json
 {
     "email": "guru@test.com",
-    "password": "password123"
+    "password": "password123!"
 }
 ```
 
 ---
 
-## 💰 3. Recharge Wallets (Enterprise Transaction Testing)
-**Endpoint:** `POST /api/users/recharge` (Requires JWT)
+## 💳 3. Recharge Wallets (Stripe Inbound Finance)
+**Endpoint:** `POST /api/transactions/recharge` (Requires Cookie)
 
-Log in as **Big Spender**, use their token, and give them $1000. *(This will securely use the ACID MongoDB Transaction logic)*.
+Log in as **Big Spender** and give them $1000 using Stripe's magic test token `tok_visa`. *(This automatically provisions their Stripe Customer ID behind the scenes and uses ACID MongoDB Transactions to update the ledger).*
 ```json
 {
-    "amount": 1000
+    "amount": 1000,
+    "paymentSource": "tok_visa",
+    "isSavedCard": false,
+    "shouldSaveCard": false
 }
 ```
 *(Do not recharge Broke Student, so we can test the insufficient funds error later).*
@@ -74,9 +74,9 @@ Log in as **Big Spender**, use their token, and give them $1000. *(This will sec
 ---
 
 ## 📝 4. Seed the Blogs (Create 15+ Blogs)
-**Endpoint:** `POST /api/blogs` (Requires JWT)
+**Endpoint:** `POST /api/blogs` (Requires Cookie)
 
-Log in as **Tech Guru**, use their token, and run these 15 payloads one by one to populate your database.
+Log in as **Tech Guru** and run these payloads to populate your database.
 
 **Blog 1 (Free)**
 ```json
@@ -131,126 +131,21 @@ Log in as **Tech Guru**, use their token, and run these 15 payloads one by one t
 }
 ```
 
-**Blog 6 (Paid - $50)**
-```json
-{
-    "title": "AI Programming with Python",
-    "snippet": "Build your first neural network.",
-    "body": "Artificial intelligence is taking over. Learn how to train models using PyTorch and TensorFlow.",
-    "isPaid": true,
-    "price": 50
-}
-```
-
-**Blog 7 (Free)**
-```json
-{
-    "title": "CSS Grid vs Flexbox",
-    "snippet": "Which one should you use?",
-    "body": "Flexbox is for 1-dimensional layouts (rows OR columns). Grid is for 2-dimensional layouts (rows AND columns).",
-    "isPaid": false
-}
-```
-
-**Blog 8 (Paid - $5)**
-```json
-{
-    "title": "HTML5 Best Practices",
-    "snippet": "Write semantic HTML for better SEO.",
-    "body": "Stop using divs for everything. Use article, section, header, and footer tags so Google can read your site.",
-    "isPaid": true,
-    "price": 5
-}
-```
-
-**Blog 9 (Paid - $20)**
-```json
-{
-    "title": "Docker for Beginners",
-    "snippet": "Containerize your Node.js apps.",
-    "body": "Docker makes it easy to run your app anywhere. Just write a Dockerfile, build the image, and run the container.",
-    "isPaid": true,
-    "price": 20
-}
-```
-
-**Blog 10 (Free)**
-```json
-{
-    "title": "Regex Basics",
-    "snippet": "Stop being afraid of Regular Expressions.",
-    "body": "Regex looks scary but it's just pattern matching. ^ means start, $ means end, and .* means anything.",
-    "isPaid": false
-}
-```
-
-**Blog 11 (Paid - $30)**
-```json
-{
-    "title": "Master Kubernetes",
-    "snippet": "Scale your Docker containers.",
-    "body": "K8s is the industry standard for orchestrating microservices. Learn pods, deployments, and services.",
-    "isPaid": true,
-    "price": 30
-}
-```
-
-**Blog 12 (Paid - $100)**
-```json
-{
-    "title": "How to Start a SaaS",
-    "snippet": "From zero to $10k MRR.",
-    "body": "Building a Software as a Service company requires marketing just as much as coding. Find a niche first.",
-    "isPaid": true,
-    "price": 100
-}
-```
-
-**Blog 13 (Free)**
-```json
-{
-    "title": "Python vs JS in 2026",
-    "snippet": "Which language wins?",
-    "body": "Python dominates AI and Data Science. JS dominates the Web. Learn both if you want to be full-stack.",
-    "isPaid": false
-}
-```
-
-**Blog 14 (Paid - $12)**
-```json
-{
-    "title": "TypeScript Crash Course",
-    "snippet": "Add static typing to your JS apps.",
-    "body": "TypeScript catches bugs before you even run your code. Interfaces and Types are your best friends.",
-    "isPaid": true,
-    "price": 12
-}
-```
-
-**Blog 15 (Paid - $25)**
-```json
-{
-    "title": "Advanced Mongoose Schemas",
-    "snippet": "Virtuals, Hooks, and Methods.",
-    "body": "Mongoose is more than just defining data. You can run pre-save hooks to hash passwords automatically.",
-    "isPaid": true,
-    "price": 25
-}
-```
+*(You can continue creating blogs 6 through 15 using similar structures, ensuring paid blogs have `price > 0` and bodies are > 20 characters).*
 
 ---
 
-## 🔍 5. Test Pagination & Lightning Fast Text Search (No Token Needed)
+## 🔍 5. Test Pagination & Lightning Fast Text Search
 Now that the database is full, test the public routes:
 
-1. **GET** `/api/blogs?page=1&limit=5` (Should return the 5 newest blogs, handled perfectly by the page/limit logic)
+1. **GET** `/api/blogs?page=1&limit=5` (Should return the 5 newest blogs)
 2. **GET** `/api/blogs?page=2&limit=5` (Should return the next 5)
 3. **GET** `/api/blogs?search=React` (Will now instantly hit your new **MongoDB Text Index** and return Blog #2)
 
 ---
 
 ## 🛒 6. Test Purchasing Economy (Double-Entry Ledger)
-**Endpoint:** `POST /api/blogs/:id/purchase` (Requires JWT)
+**Endpoint:** `POST /api/blogs/:id/buy` (Requires Cookie)
 
 Grab the `_id` of Blog #3 ("Advanced Node.js Architecture" - Price: $200).
 
@@ -266,34 +161,63 @@ Grab the `_id` of Blog #3 ("Advanced Node.js Architecture" - Price: $200).
 ---
 
 ## 📖 7. Test Access Control (Referential Lookups)
-**Endpoint:** `GET /api/blogs/:id`
+**Endpoint:** `GET /api/blogs/:id` (Optional Cookie)
 
 Using the same `_id` of Blog #3:
-1. Try fetching it with **Broke Student's** token (or no token).
+1. Try fetching it with **Broke Student's** login.
    - *Result: You only see the title/snippet, body is hidden.*
-2. Try fetching it with **Big Spender's** token.
+2. Try fetching it with **Big Spender's** login.
    - *Result: The Compound Index instantly checks the Transaction Ledger, verifies ownership, and returns the full body!*
 
 ---
 
-## 🏦 8. Test the Financial Ledgers (Pre-Sorted Search)
-**Endpoint:** `GET /api/users/transactions` (Requires JWT)
+## 🏦 8. Stripe Outbound Finance (Withdrawals)
 
-1. Check **Big Spender's** token.
-   - *Result: A `DEPOSIT` of 1000, and a `PURCHASE` of 200. (Instantly pulled via the Pre-Sorted Compound Index).*
-2. Check **Tech Guru's** token.
-   - *Result: An `EARNING` of 200.*
+Log in as **Tech Guru** (they just earned $200 from the blog sale!) and attempt to cash out to their real bank.
+
+**Step A: Submit Legal Identity (KYC)**
+**Endpoint:** `POST /api/users/submit-kyc`
+```json
+{
+    "legalFirstName": "Tech",
+    "legalLastName": "Guru",
+    "dob": { "day": 15, "month": 6, "year": 1990 },
+    "address": { "line1": "123 Test Street", "city": "Sydney", "state": "NSW", "postal_code": "2000" }
+}
+```
+
+**Step B: Link Bank Account**
+**Endpoint:** `POST /api/transactions/add-bank`
+*(Uses Stripe's magic Australian bank token `btok_au`)*
+```json
+{
+    "bankToken": "btok_au"
+}
+```
+
+**Step C: Withdraw Funds**
+**Endpoint:** `POST /api/transactions/withdraw`
+```json
+{
+    "amount": 20
+}
+```
+*(This triggers an automated Stripe Payout for 95% of the withdrawal amount!)*
 
 ---
 
-## 🔄 9. Test Refresh Tokens
-**Endpoint:** `GET /api/auth/refresh`
+## 📜 9. Test the Financial Ledgers (Auditing)
+**Endpoint:** `GET /api/transactions/transactions` (Requires Cookie)
 
-Wait 15 minutes (or change JWT expiration to 1m) until your Access Token expires.
-Send the Refresh Token (which is stored in a cookie automatically if testing in browser, or send it in JSON body).
-```json
-{
-    "refreshToken": "<paste_refresh_token_here>"
-}
-```
-*Result: You receive a fresh Access Token.*
+1. Check **Big Spender's** ledger.
+   - *Result: A `DEPOSIT` of 1000, and a `BUY` of 200.*
+2. Check **Tech Guru's** ledger.
+   - *Result: A `SELL` of 200, and a `WITHDRAW` of 20.*
+
+---
+
+## 🔄 10. Test Refresh Tokens
+**Endpoint:** `GET /api/users/refresh`
+
+Wait 15 minutes until your Access Token expires (or send request directly).
+*Result: Your backend reads the HTTP-Only `refreshToken` cookie and issues a fresh Access Token automatically!*
