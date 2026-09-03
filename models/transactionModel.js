@@ -16,6 +16,11 @@ const transactionSchema = new mongoose.Schema(
             type: Number,
             required: true
         },
+        currentBalance: {
+            type: Number,
+            required: true,
+            default: null
+        },
         blogId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Blog',

@@ -59,7 +59,7 @@ const rechargeWalletService = async (userId, amount, paymentSource, isSavedCard,
 
     let user = await Users.findById(userId);
     if (!user) throw new Error("User not found!");
-
+    
     user = await ensureStripeProfiles(user);
 
     let stripeBody;
@@ -109,7 +109,8 @@ const rechargeWalletService = async (userId, amount, paymentSource, isSavedCard,
             userId: userId,
             type: 'DEPOSIT',
             amount: amount,
-            description: `Wallet recharge of ${amount}`
+            description: `Wallet recharge of ${amount}`,
+            currentBalance: user.walletBalance,
         }], { session: session });
 
         await session.commitTransaction();
@@ -159,7 +160,8 @@ const withdrawWalletService = async (userId, amount) => {
             userId: userId,
             type: 'WITHDRAW',
             amount: amount,
-            description: `Withdrawal of ${amount} to bank`
+            description: `Withdrawal of ${amount} to bank`,
+            currentBalance: user.walletBalance
         }], { session: session });
 
         const stripeResponse = await fetch('https://api.stripe.com/v1/transfers', {

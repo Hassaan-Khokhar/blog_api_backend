@@ -98,7 +98,7 @@ const deleteBlogService = async (blogId, userId) => {
     return deleteBlog;
 };
 
-const purchasedBlogService = async (buyerId, blogId) => {
+const purchasedBlogService = async (buyerId, blogId) => {Blog._id
     const blog = await Blog.findById(blogId);
     if (!blog) throw new Error("Blog Not Found!");
     if (!blog.isPaid) throw new Error("This Blog is Free!");
@@ -123,7 +123,8 @@ const purchasedBlogService = async (buyerId, blogId) => {
             type: 'BUY',
             amount: blog.price,
             blogId: blog._id,
-            description: `Purchased Blog: ${blog.title}`
+            description: `Purchased Blog: ${blog.title}`,
+            currentBalance: buyer.walletBalance
         });
 
         const authorTransaction = new Transaction({
@@ -131,7 +132,8 @@ const purchasedBlogService = async (buyerId, blogId) => {
             type: 'SELL',
             amount: blog.price,
             blogId: blog._id,
-            description: `Someone purchased your Blog: ${blog.title}`
+            description: `Someone purchased your Blog: ${blog.title}`,
+            currentBalance: author.walletBalance
         });
 
         await buyerTransaction.save({ session });
